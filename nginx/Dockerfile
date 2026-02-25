@@ -1,6 +1,3 @@
-#################################################
-# Stage 1 — Build GeoIP2 Dynamic Module
-#################################################
 ARG NGINX_VERSION=1.25.0
 FROM nginx:${NGINX_VERSION} AS builder
 
@@ -25,9 +22,6 @@ RUN cd /tmp/nginx-${NGINX_VERSION} && \
     ./configure --with-compat --add-dynamic-module=/tmp/ngx_http_geoip2_module && \
     make modules
 
-#################################################
-# Stage 2 — Final Image
-#################################################
 FROM nginx:${NGINX_VERSION}
 
 # Copy compiled module
