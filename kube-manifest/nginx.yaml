@@ -93,7 +93,7 @@ spec:
     spec:
       containers:
         - name: nginx
-          image: your-registry/nginx-geoip2:latest  # Build from nginx/Dockerfile and push to your registry
+          image: balamaru/nginx-geoip:1.0  # Build from nginx/Dockerfile and push to your registry
           ports:
             - containerPort: 80
           volumeMounts:
@@ -126,5 +126,5 @@ spec:
   ports:
     - port: 80
       targetPort: 80
-      nodePort: 30080
+      # nodePort: 30080
   type: ClusterIP
