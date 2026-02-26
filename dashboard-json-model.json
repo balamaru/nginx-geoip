@@ -44,7 +44,8 @@
             "mode": "absolute",
             "steps": [
               {
-                "color": "green"
+                "color": "green",
+                "value": null
               },
               {
                 "color": "red",
@@ -150,14 +151,47 @@
       "fieldConfig": {
         "defaults": {
           "color": {
-            "mode": "thresholds"
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "axisBorderShow": false,
+            "axisCenteredZero": false,
+            "axisColorMode": "text",
+            "axisLabel": "",
+            "axisPlacement": "auto",
+            "barAlignment": 0,
+            "drawStyle": "line",
+            "fillOpacity": 0,
+            "gradientMode": "none",
+            "hideFrom": {
+              "legend": false,
+              "tooltip": false,
+              "viz": false
+            },
+            "insertNulls": false,
+            "lineInterpolation": "linear",
+            "lineWidth": 1,
+            "pointSize": 5,
+            "scaleDistribution": {
+              "type": "linear"
+            },
+            "showPoints": "auto",
+            "spanNulls": false,
+            "stacking": {
+              "group": "A",
+              "mode": "none"
+            },
+            "thresholdsStyle": {
+              "mode": "off"
+            }
           },
           "mappings": [],
           "thresholds": {
             "mode": "absolute",
             "steps": [
               {
-                "color": "green"
+                "color": "green",
+                "value": null
               },
               {
                 "color": "red",
@@ -165,111 +199,41 @@
               }
             ]
           },
-          "unit": "s",
           "unitScale": true
         },
         "overrides": []
       },
       "gridPos": {
         "h": 14,
-        "w": 6,
+        "w": 12,
         "x": 0,
         "y": 18
       },
-      "id": 4,
+      "id": 6,
       "options": {
-        "minVizHeight": 75,
-        "minVizWidth": 75,
-        "orientation": "auto",
-        "reduceOptions": {
-          "calcs": [
-            "lastNotNull"
-          ],
-          "fields": "",
-          "values": false
+        "legend": {
+          "calcs": [],
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": true
         },
-        "showThresholdLabels": false,
-        "showThresholdMarkers": true,
-        "sizing": "auto"
+        "tooltip": {
+          "mode": "single",
+          "sort": "none"
+        }
       },
-      "pluginVersion": "10.3.1",
       "targets": [
         {
           "datasource": {
             "type": "influxdb",
             "uid": "d2ec93c3-e931-4d0e-bfb3-dcff25981d1e"
           },
-          "query": "from(bucket: \"nginx\")\r\n  |> range(start: v.timeRangeStart, stop: v.timeRangeStop)\r\n  |> filter(fn: (r) => r._measurement == \"nginx_access\")\r\n  |> filter(fn: (r) => r._field == \"request_time\")\r\n  |> mean()\r\n  |> map(fn: (r) => ({ _value: r._value, _field: \"Avg Response Time\" }))",
+          "query": "from(bucket: \"nginx\")\r\n  |> range(start: v.timeRangeStart, stop: v.timeRangeStop)\r\n  |> filter(fn: (r) => r._measurement == \"nginx_access\")\r\n  |> filter(fn: (r) => r._field == \"request_time\")\r\n  |> aggregateWindow(every: v.windowPeriod, fn: count, createEmpty: false)\r\n  |> map(fn: (r) => ({ r with _field: \"Requests\" }))\r\n  |> drop(columns: [\"_measurement\", \"_start\", \"_stop\", \"env\", \"host\", \"instance\", \"service\", \"name\", \"path\", \"country_name\"])\r\n  |> aggregateWindow(every: v.windowPeriod, fn: mean, createEmpty: false)",
           "refId": "A"
         }
       ],
-      "title": "Avg Response Time",
-      "type": "gauge"
-    },
-    {
-      "datasource": {
-        "type": "influxdb",
-        "uid": "d2ec93c3-e931-4d0e-bfb3-dcff25981d1e"
-      },
-      "fieldConfig": {
-        "defaults": {
-          "color": {
-            "mode": "thresholds"
-          },
-          "mappings": [],
-          "thresholds": {
-            "mode": "absolute",
-            "steps": [
-              {
-                "color": "green"
-              },
-              {
-                "color": "red",
-                "value": 80
-              }
-            ]
-          },
-          "unit": "short",
-          "unitScale": true
-        },
-        "overrides": []
-      },
-      "gridPos": {
-        "h": 14,
-        "w": 6,
-        "x": 6,
-        "y": 18
-      },
-      "id": 5,
-      "options": {
-        "colorMode": "value",
-        "graphMode": "area",
-        "justifyMode": "auto",
-        "orientation": "auto",
-        "reduceOptions": {
-          "calcs": [
-            "lastNotNull"
-          ],
-          "fields": "",
-          "values": false
-        },
-        "showPercentChange": false,
-        "textMode": "auto",
-        "wideLayout": true
-      },
-      "pluginVersion": "10.3.1",
-      "targets": [
-        {
-          "datasource": {
-            "type": "influxdb",
-            "uid": "d2ec93c3-e931-4d0e-bfb3-dcff25981d1e"
-          },
-          "query": "from(bucket: \"nginx\")\r\n  |> range(start: v.timeRangeStart, stop: v.timeRangeStop)\r\n  |> filter(fn: (r) => r._measurement == \"nginx_access\")\r\n  |> filter(fn: (r) => r._field == \"status\")\r\n  |> count()\r\n  |> map(fn: (r) => ({ _value: r._value, _field: \"Total Requests\" }))",
-          "refId": "A"
-        }
-      ],
-      "title": "Total request",
-      "type": "stat"
+      "title": "Response Time Over Time",
+      "type": "timeseries"
     },
     {
       "datasource": {
@@ -307,7 +271,8 @@
             "mode": "absolute",
             "steps": [
               {
-                "color": "green"
+                "color": "green",
+                "value": null
               },
               {
                 "color": "red",
@@ -368,6 +333,228 @@
       "fieldConfig": {
         "defaults": {
           "color": {
+            "mode": "thresholds"
+          },
+          "custom": {
+            "align": "auto",
+            "cellOptions": {
+              "type": "auto"
+            },
+            "filterable": true,
+            "inspect": false
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "red",
+                "value": 80
+              }
+            ]
+          },
+          "unitScale": true
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 14,
+        "w": 19,
+        "x": 0,
+        "y": 32
+      },
+      "id": 9,
+      "options": {
+        "cellHeight": "sm",
+        "footer": {
+          "countRows": false,
+          "fields": "",
+          "reducer": [
+            "sum"
+          ],
+          "show": false
+        },
+        "frameIndex": 4,
+        "showHeader": true
+      },
+      "pluginVersion": "10.3.1",
+      "targets": [
+        {
+          "datasource": {
+            "type": "influxdb",
+            "uid": "d2ec93c3-e931-4d0e-bfb3-dcff25981d1e"
+          },
+          "query": "from(bucket: \"nginx\")\r\n  |> range(start: v.timeRangeStart, stop: v.timeRangeStop)\r\n  |> filter(fn: (r) => r._measurement == \"nginx_access\")\r\n  |> pivot(\r\n      rowKey: [\"_time\"],\r\n      columnKey: [\"_field\"],\r\n      valueColumn: \"_value\"\r\n  )\r\n  |> keep(columns: [\r\n      \"_time\",\r\n      \"status\",\r\n      \"request_time\",\r\n      \"method\",\r\n      \"uri\",\r\n      \"client_ip\",\r\n      \"city_name\",\r\n      \"country_name\",\r\n      \"country_code\",\r\n      \"latitude\",\r\n      \"longitude\"\r\n  ])\r\n  |> sort(columns: [\"_time\"], desc: true)\r\n  |> group()",
+          "refId": "A"
+        }
+      ],
+      "title": "Access Logs Table",
+      "transformations": [
+        {
+          "id": "organize",
+          "options": {
+            "excludeByName": {},
+            "includeByName": {},
+            "indexByName": {},
+            "renameByName": {
+              "_time": "Time",
+              "city_name": "CIty",
+              "client_ip": "IP",
+              "country_code": "Country Code",
+              "country_name": "Country",
+              "method": "Method",
+              "request_time": "Request Time (s)",
+              "status": "HTTP Status",
+              "uri": ""
+            }
+          }
+        }
+      ],
+      "type": "table"
+    },
+    {
+      "datasource": {
+        "type": "influxdb",
+        "uid": "d2ec93c3-e931-4d0e-bfb3-dcff25981d1e"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "thresholds"
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "red",
+                "value": 80
+              }
+            ]
+          },
+          "unit": "short",
+          "unitScale": true
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 7,
+        "w": 5,
+        "x": 19,
+        "y": 32
+      },
+      "id": 5,
+      "options": {
+        "colorMode": "value",
+        "graphMode": "area",
+        "justifyMode": "auto",
+        "orientation": "auto",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "showPercentChange": false,
+        "textMode": "auto",
+        "wideLayout": true
+      },
+      "pluginVersion": "10.3.1",
+      "targets": [
+        {
+          "datasource": {
+            "type": "influxdb",
+            "uid": "d2ec93c3-e931-4d0e-bfb3-dcff25981d1e"
+          },
+          "query": "from(bucket: \"nginx\")\r\n  |> range(start: v.timeRangeStart, stop: v.timeRangeStop)\r\n  |> filter(fn: (r) => r._measurement == \"nginx_access\")\r\n  |> filter(fn: (r) => r._field == \"status\")\r\n  |> count()\r\n  |> map(fn: (r) => ({ _value: r._value, _field: \"Total Requests\" }))",
+          "refId": "A"
+        }
+      ],
+      "title": "Total request",
+      "type": "stat"
+    },
+    {
+      "datasource": {
+        "type": "influxdb",
+        "uid": "d2ec93c3-e931-4d0e-bfb3-dcff25981d1e"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "thresholds"
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "red",
+                "value": 80
+              }
+            ]
+          },
+          "unit": "s",
+          "unitScale": true
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 7,
+        "w": 5,
+        "x": 19,
+        "y": 39
+      },
+      "id": 4,
+      "options": {
+        "minVizHeight": 75,
+        "minVizWidth": 75,
+        "orientation": "auto",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "showThresholdLabels": false,
+        "showThresholdMarkers": true,
+        "sizing": "auto"
+      },
+      "pluginVersion": "10.3.1",
+      "targets": [
+        {
+          "datasource": {
+            "type": "influxdb",
+            "uid": "d2ec93c3-e931-4d0e-bfb3-dcff25981d1e"
+          },
+          "query": "from(bucket: \"nginx\")\r\n  |> range(start: v.timeRangeStart, stop: v.timeRangeStop)\r\n  |> filter(fn: (r) => r._measurement == \"nginx_access\")\r\n  |> filter(fn: (r) => r._field == \"request_time\")\r\n  |> mean()\r\n  |> map(fn: (r) => ({ _value: r._value, _field: \"Avg Response Time\" }))",
+          "refId": "A"
+        }
+      ],
+      "title": "Avg Response Time",
+      "type": "gauge"
+    },
+    {
+      "datasource": {
+        "type": "influxdb",
+        "uid": "d2ec93c3-e931-4d0e-bfb3-dcff25981d1e"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": {
             "mode": "palette-classic"
           },
           "custom": {
@@ -396,7 +583,8 @@
             "mode": "absolute",
             "steps": [
               {
-                "color": "green"
+                "color": "green",
+                "value": null
               },
               {
                 "color": "red",
@@ -412,7 +600,7 @@
         "h": 14,
         "w": 12,
         "x": 0,
-        "y": 32
+        "y": 46
       },
       "id": 2,
       "options": {
@@ -496,7 +684,8 @@
             "mode": "absolute",
             "steps": [
               {
-                "color": "green"
+                "color": "green",
+                "value": null
               },
               {
                 "color": "red",
@@ -512,97 +701,6 @@
         "h": 14,
         "w": 12,
         "x": 12,
-        "y": 32
-      },
-      "id": 6,
-      "options": {
-        "legend": {
-          "calcs": [],
-          "displayMode": "list",
-          "placement": "bottom",
-          "showLegend": true
-        },
-        "tooltip": {
-          "mode": "single",
-          "sort": "none"
-        }
-      },
-      "targets": [
-        {
-          "datasource": {
-            "type": "influxdb",
-            "uid": "d2ec93c3-e931-4d0e-bfb3-dcff25981d1e"
-          },
-          "query": "from(bucket: \"nginx\")\r\n  |> range(start: v.timeRangeStart, stop: v.timeRangeStop)\r\n  |> filter(fn: (r) => r._measurement == \"nginx_access\")\r\n  |> filter(fn: (r) => r._field == \"request_time\")\r\n  |> aggregateWindow(every: v.windowPeriod, fn: count, createEmpty: false)\r\n  |> map(fn: (r) => ({ r with _field: \"Requests\" }))\r\n  |> drop(columns: [\"_measurement\", \"_start\", \"_stop\", \"env\", \"host\", \"instance\", \"service\", \"name\", \"path\", \"country_name\"])\r\n  |> aggregateWindow(every: v.windowPeriod, fn: mean, createEmpty: false)",
-          "refId": "A"
-        }
-      ],
-      "title": "Response Time Over Time",
-      "type": "timeseries"
-    },
-    {
-      "datasource": {
-        "type": "influxdb",
-        "uid": "d2ec93c3-e931-4d0e-bfb3-dcff25981d1e"
-      },
-      "fieldConfig": {
-        "defaults": {
-          "color": {
-            "mode": "palette-classic"
-          },
-          "custom": {
-            "axisBorderShow": false,
-            "axisCenteredZero": false,
-            "axisColorMode": "text",
-            "axisLabel": "",
-            "axisPlacement": "auto",
-            "barAlignment": 0,
-            "drawStyle": "line",
-            "fillOpacity": 0,
-            "gradientMode": "none",
-            "hideFrom": {
-              "legend": false,
-              "tooltip": false,
-              "viz": false
-            },
-            "insertNulls": false,
-            "lineInterpolation": "linear",
-            "lineWidth": 1,
-            "pointSize": 5,
-            "scaleDistribution": {
-              "type": "linear"
-            },
-            "showPoints": "auto",
-            "spanNulls": false,
-            "stacking": {
-              "group": "A",
-              "mode": "none"
-            },
-            "thresholdsStyle": {
-              "mode": "off"
-            }
-          },
-          "mappings": [],
-          "thresholds": {
-            "mode": "absolute",
-            "steps": [
-              {
-                "color": "green"
-              },
-              {
-                "color": "red",
-                "value": 80
-              }
-            ]
-          },
-          "unitScale": true
-        },
-        "overrides": []
-      },
-      "gridPos": {
-        "h": 14,
-        "w": 12,
-        "x": 0,
         "y": 46
       },
       "id": 7,
@@ -639,13 +737,13 @@
     "list": []
   },
   "time": {
-    "from": "now-24h",
+    "from": "now-2d",
     "to": "now"
   },
   "timepicker": {},
   "timezone": "",
   "title": "The whole word request",
   "uid": "dd18c9a8-c9ee-4038-8fcc-8bf536a7e4b2",
-  "version": 5,
+  "version": 8,
   "weekStart": ""
 }

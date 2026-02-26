@@ -121,3 +121,32 @@ from(bucket: "nginx")
   |> drop(columns: ["_measurement", "_start", "_stop", "env", "host", "instance", "service", "name", "path"])
   |> yield(name: "request_rate")
 ```
+
+## 8. Access Logs Table
+- Viz type : Tables
+- Transform data (rename every coloums that needed)
+```sh
+from(bucket: "nginx")
+  |> range(start: v.timeRangeStart, stop: v.timeRangeStop)
+  |> filter(fn: (r) => r._measurement == "nginx_access")
+  |> pivot(
+      rowKey: ["_time"],
+      columnKey: ["_field"],
+      valueColumn: "_value"
+  )
+  |> keep(columns: [
+      "_time",
+      "status",
+      "request_time",
+      "method",
+      "uri",
+      "client_ip",
+      "city_name",
+      "country_name",
+      "country_code",
+      "latitude",
+      "longitude"
+  ])
+  |> sort(columns: ["_time"], desc: true)
+  |> group()
+```
