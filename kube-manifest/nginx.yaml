@@ -100,16 +100,16 @@ spec:
             - name: nginx-config
               mountPath: /etc/nginx/nginx.conf
               subPath: nginx.conf
-            - name: nginx-geoip
-              mountPath: /etc/nginx/geoip
+            # - name: nginx-geoip
+            #   mountPath: /etc/nginx/geoip
             - name: nginx-logs
               mountPath: /var/log/nginx
       volumes:
         - name: nginx-config
           configMap:
             name: nginx-config
-        - name: nginx-geoip
-          emptyDir: {}   # Replace with PVC or ConfigMap containing your .mmdb files
+        # - name: nginx-geoip
+        #   emptyDir: {}   # Replace with PVC or ConfigMap containing your .mmdb files
         - name: nginx-logs
           persistentVolumeClaim:
             claimName: nginx-logs-pvc
