@@ -41,3 +41,7 @@ chmod +x generate_logs.sh
 # Stream 50 baris lalu berhenti
 ./generate_logs.sh stream 1 50
 ```
+
+## 6. References
+- [Total Nginx monitoring, with application performance and a bit more, using Telegraf/InfluxDB/Grafana](https://faun.pub/total-nginx-monitoring-with-application-performance-and-a-bit-more-using-8fc6d731)
+- [GeoIP documentation](https://docs.nginx.com/nginx/admin-guide/dynamic-modules/geoip/)
