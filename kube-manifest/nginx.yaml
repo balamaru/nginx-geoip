@@ -1,0 +1,130 @@
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: nginx-config
+  namespace: monitoring
+data:
+  nginx.conf: |
+    load_module modules/ngx_http_geoip2_module.so;
+
+    worker_processes auto;
+    pid /var/run/nginx.pid;
+
+    events {
+      worker_connections 1024;
+    }
+
+    http {
+      include       /etc/nginx/mime.types;
+      default_type  text/plain;
+
+      sendfile        on;
+      keepalive_timeout  65;
+
+      geoip2 /etc/nginx/geoip/GeoLite2-Country.mmdb {
+        $geoip_country_code country iso_code;
+        $geoip_country_name country names en;
+      }
+
+      geoip2 /etc/nginx/geoip/GeoLite2-City.mmdb {
+        $geoip_city_name city names en;
+        $geoip_latitude location latitude;
+        $geoip_longitude location longitude;
+      }
+
+      log_format telegraf_geo
+        '$remote_addr '
+        '$status '
+        '$request_time '
+        '"$request" '
+        '"$geoip_country_code" '
+        '"$geoip_country_name" '
+        '"$geoip_city_name" '
+        '$geoip_latitude '
+        '$geoip_longitude';
+
+      access_log /var/log/nginx/access.log telegraf_geo;
+
+      server {
+        listen 80 default_server;
+        server_name _;
+
+        location / {
+          return 200 "Hello Geo Monitoring\n";
+        }
+
+        location /nginx_status {
+          stub_status;
+          access_log off;
+          allow all;
+        }
+      }
+    }
+
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: nginx-logs-pvc
+  namespace: monitoring
+spec:
+  accessModes:
+    - ReadWriteMany
+  resources:
+    requests:
+      storage: 1Gi
+
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: nginx
+  namespace: monitoring
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: nginx
+  template:
+    metadata:
+      labels:
+        app: nginx
+    spec:
+      containers:
+        - name: nginx
+          image: your-registry/nginx-geoip2:latest  # Build from nginx/Dockerfile and push to your registry
+          ports:
+            - containerPort: 80
+          volumeMounts:
+            - name: nginx-config
+              mountPath: /etc/nginx/nginx.conf
+              subPath: nginx.conf
+            - name: nginx-geoip
+              mountPath: /etc/nginx/geoip
+            - name: nginx-logs
+              mountPath: /var/log/nginx
+      volumes:
+        - name: nginx-config
+          configMap:
+            name: nginx-config
+        - name: nginx-geoip
+          emptyDir: {}   # Replace with PVC or ConfigMap containing your .mmdb files
+        - name: nginx-logs
+          persistentVolumeClaim:
+            claimName: nginx-logs-pvc
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: nginx
+  namespace: monitoring
+spec:
+  selector:
+    app: nginx
+  ports:
+    - port: 80
+      targetPort: 80
+      nodePort: 30080
+  type: ClusterIP
