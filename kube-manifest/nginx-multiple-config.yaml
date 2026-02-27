@@ -4,8 +4,6 @@ kind: ServiceAccount
 metadata:
   name: nginx-sa
   namespace: monitoring
-imagePullSecrets:
-  - name: regcred
 
 ---
 apiVersion: rbac.authorization.k8s.io/v1
@@ -19,9 +17,8 @@ rules:
     verbs: ["get", "list", "watch", "create", "patch", "update", "delete"]
 
 ---
-apiVersion: v1
-kind: ClusterRole
 apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
 metadata:
   name: nginx-sa
 rules:
@@ -29,31 +26,12 @@ rules:
     resources:     ['podsecuritypolicies']
     verbs:         ['use']
     resourceNames: ['nginx-sa']
-  - apiGroups:
-      - ""
-    resources:
-      - pods
-      - services
-      - endpoints
-      - secrets
-    verbs:
-      - get
-      - list
-      - watch
-  - apiGroups:
-      - extensions
-    resources:
-      - ingresses
-    verbs:
-      - get
-      - list
-      - watch
-  - apiGroups:
-      - extensions
-    resources:
-      - ingresses/status
-    verbs:
-      - update
+  - apiGroups: [""]
+    resources: ["pods", "services", "endpoints", "secrets"]
+    verbs: ["get", "list", "watch"]
+  - apiGroups: ["extensions"]
+    resources: ["ingresses", "ingresses/status"]
+    verbs: ["get", "list", "watch", "update"]
 
 ---
 apiVersion: rbac.authorization.k8s.io/v1
@@ -71,9 +49,8 @@ subjects:
     namespace: monitoring
 
 ---
-apiVersion: v1
-kind: ClusterRoleBinding
 apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
 metadata:
   name: nginx-sa
 roleRef:
@@ -120,6 +97,7 @@ data:
         $geoip_longitude location longitude;
       }
 
+      # FIX: $host dipisah dengan spasi dan diberi quotes agar konsisten
       log_format telegraf_geo
         '$remote_addr '
         '$status '
@@ -129,23 +107,53 @@ data:
         '"$geoip_country_name" '
         '"$geoip_city_name" '
         '$geoip_latitude '
-        '$geoip_longitude';
+        '$geoip_longitude '
+        '"$host"';
 
       access_log /var/log/nginx/access.log telegraf_geo;
 
-      server {
-        listen 80 default_server;
-        server_name _;
+      include /etc/nginx/conf.d/*.conf;
+    }
 
-        location / {
-          return 200 "Hello Geo Monitoring\n";
-        }
+  app-1.conf: |
+    server {
+      listen 80;
+      server_name app1.test;
+      access_log /var/log/nginx/app1_access.log telegraf_geo;
+      location / {
+        return 200 "App 1 Online\n";
+      }
+      location /nginx_status {
+        stub_status;
+        access_log off;
+      }
+    }
 
-        location /nginx_status {
-          stub_status;
-          access_log off;
-          allow all;
-        }
+  app-2.conf: |
+    server {
+      listen 80;
+      server_name app2.test;
+      access_log /var/log/nginx/app2_access.log telegraf_geo;
+      location / {
+        return 200 "App 2 Online\n";
+      }
+      location /nginx_status {
+        stub_status;
+        access_log off;
+      }
+    }
+
+  app-3.conf: |
+    server {
+      listen 80;
+      server_name app3.test;
+      access_log /var/log/nginx/app3_access.log telegraf_geo;
+      location / {
+        return 200 "App 3 Online\n";
+      }
+      location /nginx_status {
+        stub_status;
+        access_log off;
       }
     }
 
@@ -181,23 +189,34 @@ spec:
       serviceAccountName: nginx-sa
       containers:
         - name: nginx
-          image: balamaru/nginx-geoip:1.0  # Build from nginx/Dockerfile and push to your registry
+          image: balamaru/nginx-geoip:1.0
           ports:
             - containerPort: 80
           volumeMounts:
-            - name: nginx-config
+            - name: nginx-main-config
               mountPath: /etc/nginx/nginx.conf
               subPath: nginx.conf
-            # - name: nginx-geoip
-            #   mountPath: /etc/nginx/geoip
+            - name: nginx-app-configs
+              mountPath: /etc/nginx/conf.d
             - name: nginx-logs
               mountPath: /var/log/nginx
       volumes:
-        - name: nginx-config
+        - name: nginx-main-config
           configMap:
             name: nginx-config
-        # - name: nginx-geoip
-        #   emptyDir: {}   # Replace with PVC or ConfigMap containing your .mmdb files
+            items:
+              - key: nginx.conf
+                path: nginx.conf
+        - name: nginx-app-configs
+          configMap:
+            name: nginx-config
+            items:
+              - key: app-1.conf
+                path: app-1.conf
+              - key: app-2.conf
+                path: app-2.conf
+              - key: app-3.conf
+                path: app-3.conf
         - name: nginx-logs
           persistentVolumeClaim:
             claimName: nginx-logs-pvc
@@ -214,5 +233,4 @@ spec:
   ports:
     - port: 80
       targetPort: 80
-      # nodePort: 30080
   type: ClusterIP

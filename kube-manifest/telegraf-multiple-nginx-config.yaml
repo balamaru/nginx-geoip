@@ -4,8 +4,6 @@ kind: ServiceAccount
 metadata:
   name: telegraf-sa
   namespace: monitoring
-imagePullSecrets:
-  - name: regcred
 
 ---
 apiVersion: rbac.authorization.k8s.io/v1
@@ -96,13 +94,16 @@ data:
       urls = ["http://nginx/nginx_status"]
 
     [[inputs.tail]]
+      # FIX 1: pakai wildcard yang benar — match access.log, app1_access.log, dst
       files = ["/var/log/nginx/*access.log"]
       from_beginning = true
       watch_method = "inotify"
       name_override = "nginx_access"
       data_format = "grok"
+      # FIX 2: grok_custom_patterns tanpa indentasi
       grok_custom_patterns = 'SIGNED_NUMBER [-+]?[0-9]+(?:\.[0-9]+)?'
-      grok_patterns = ["%{IP:client_ip} %{NUMBER:status:int} %{NUMBER:request_time:float} \"%{DATA:method} %{DATA:uri} HTTP/%{DATA:http_version}\" \"%{DATA:country_code:tag}\" \"%{DATA:country_name:tag}\" \"%{DATA:city_name:tag}\" %{SIGNED_NUMBER:latitude:float} %{SIGNED_NUMBER:longitude:float}"]
+      # Format log: IP STATUS TIME "METHOD URI HTTP/VER" "CC" "COUNTRY" "CITY" LAT LON "HOST"
+      grok_patterns = ["%{IP:client_ip} %{NUMBER:status:int} %{NUMBER:request_time:float} \"%{DATA:method} %{DATA:uri} HTTP/%{DATA:http_version}\" \"%{DATA:country_code:tag}\" \"%{DATA:country_name:tag}\" \"%{DATA:city_name:tag}\" %{SIGNED_NUMBER:latitude:float} %{SIGNED_NUMBER:longitude:float} \"%{DATA:app_host:tag}\""]
 
 ---
 apiVersion: apps/v1
