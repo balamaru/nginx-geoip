@@ -1,0 +1,48 @@
+server:
+  http_listen_port: 9080
+  grpc_listen_port: 0
+
+positions:
+  filename: /tmp/positions.yaml
+
+clients:
+  # Arahkan ke Gigapipe, bukan Loki
+  # Gigapipe expose endpoint /loki/api/v1/push yang identik
+  - url: http://gigapipe:3100/loki/api/v1/push
+    batchwait: 1s
+    batchsize: 102400
+    timeout: 10s
+
+scrape_configs:
+  - job_name: nginx
+    static_configs:
+      - targets:
+          - localhost
+        labels:
+          job: nginx
+          host: nginx01
+          agent: promtail
+          __path__: /var/log/nginx/*log
+    pipeline_stages:
+      - json:
+          selector: '{job="nginx"}'
+          expressions:
+            remote_addr: remote_addr
+            status: status
+            request: request
+            request_uri: request_uri
+            request_time: request_time
+            body_bytes_sent: body_bytes_sent
+            http_user_agent: http_user_agent
+            request_method: request_method
+            geoip_country_code: geoip_country_code
+            geoip_country_name: geoip_country_name
+            geoip_city_name: geoip_city_name
+            geoip_latitude: geoip_latitude
+            geoip_longitude: geoip_longitude
+      - labels:
+          status:
+          request_method:
+          geoip_country_code:
+          geoip_country_name:
+          geoip_city_name:

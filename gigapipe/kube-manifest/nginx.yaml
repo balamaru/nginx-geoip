@@ -1,0 +1,223 @@
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: nginx-sa
+  namespace: monitoring
+
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: nginx-sa
+  namespace: monitoring
+rules:
+  - apiGroups: [""]
+    resources: ["pods", "configmaps"]
+    verbs: ["get", "list", "watch", "create", "patch", "update", "delete"]
+
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: nginx-sa
+rules:
+  - apiGroups:     ['policy']
+    resources:     ['podsecuritypolicies']
+    verbs:         ['use']
+    resourceNames: ['nginx-sa']
+  - apiGroups: [""]
+    resources: ["pods", "services", "endpoints", "secrets"]
+    verbs: ["get", "list", "watch"]
+  - apiGroups: ["extensions"]
+    resources: ["ingresses", "ingresses/status"]
+    verbs: ["get", "list", "watch", "update"]
+
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: nginx-sa
+  namespace: monitoring
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: nginx-sa
+subjects:
+  - kind: ServiceAccount
+    name: nginx-sa
+    namespace: monitoring
+
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: nginx-config
+  namespace: monitoring
+data:
+  nginx.conf: |
+    load_module modules/ngx_http_geoip2_module.so;
+
+    worker_processes auto;
+    pid /var/run/nginx.pid;
+
+    events {
+      worker_connections 1024;
+    }
+
+    http {
+      include       /etc/nginx/mime.types;
+      default_type  text/plain;
+
+      sendfile        on;
+      keepalive_timeout  65;
+
+      geoip2 /etc/nginx/geoip/GeoLite2-Country.mmdb {
+        $geoip_country_code country iso_code;
+        $geoip_country_name country names en;
+      }
+
+      geoip2 /etc/nginx/geoip/GeoLite2-City.mmdb {
+        $geoip_city_name   city names en;
+        $geoip_latitude    location latitude;
+        $geoip_longitude   location longitude;
+      }
+
+      # JSON log format — compatible dengan Grafana dashboard 13865
+      log_format json_analytics escape=json '{'
+        '"msec": "$msec", '
+        '"connection": "$connection", '
+        '"connection_requests": "$connection_requests", '
+        '"pid": "$pid", '
+        '"request_id": "$request_id", '
+        '"request_length": "$request_length", '
+        '"remote_addr": "$remote_addr", '
+        '"remote_user": "$remote_user", '
+        '"remote_port": "$remote_port", '
+        '"time_local": "$time_local", '
+        '"time_iso8601": "$time_iso8601", '
+        '"request": "$request", '
+        '"request_uri": "$request_uri", '
+        '"args": "$args", '
+        '"status": "$status", '
+        '"body_bytes_sent": "$body_bytes_sent", '
+        '"bytes_sent": "$bytes_sent", '
+        '"http_referer": "$http_referer", '
+        '"http_user_agent": "$http_user_agent", '
+        '"http_x_forwarded_for": "$http_x_forwarded_for", '
+        '"http_host": "$http_host", '
+        '"server_name": "$server_name", '
+        '"request_time": "$request_time", '
+        '"upstream": "$upstream_addr", '
+        '"upstream_connect_time": "$upstream_connect_time", '
+        '"upstream_header_time": "$upstream_header_time", '
+        '"upstream_response_time": "$upstream_response_time", '
+        '"upstream_response_length": "$upstream_response_length", '
+        '"upstream_cache_status": "$upstream_cache_status", '
+        '"ssl_protocol": "$ssl_protocol", '
+        '"ssl_cipher": "$ssl_cipher", '
+        '"scheme": "$scheme", '
+        '"request_method": "$request_method", '
+        '"server_protocol": "$server_protocol", '
+        '"pipe": "$pipe", '
+        '"gzip_ratio": "$gzip_ratio", '
+        '"http_cf_ray": "$http_cf_ray", '
+        '"geoip_country_code": "$geoip_country_code", '
+        '"geoip_country_name": "$geoip_country_name", '
+        '"geoip_city_name": "$geoip_city_name", '
+        '"geoip_latitude": "$geoip_latitude", '
+        '"geoip_longitude": "$geoip_longitude"'
+        '}';
+
+      access_log /var/log/nginx/access.log json_analytics;
+
+      server {
+        listen 80 default_server;
+        server_name _;
+
+        location / {
+          return 200 "Hello Geo Monitoring\n";
+        }
+
+        location /nginx_status {
+          stub_status;
+          access_log off;
+          allow all;
+        }
+      }
+    }
+
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: nginx-logs-pvc
+  namespace: monitoring
+spec:
+  # ReadWriteMany agar bisa di-mount oleh nginx dan promtail sekaligus
+  accessModes:
+    - ReadWriteMany
+  resources:
+    requests:
+      storage: 5Gi
+
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: nginx
+  namespace: monitoring
+  labels:
+    app: nginx
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: nginx
+  template:
+    metadata:
+      labels:
+        app: nginx
+    spec:
+      containers:
+        - name: nginx
+          # Image custom dengan ngx_http_geoip2_module
+          # Build dari nginx/Dockerfile dan push ke registry kamu
+          image: balamaru/nginx-geoip:1.0
+          ports:
+            - containerPort: 80
+          volumeMounts:
+            - name: nginx-config
+              mountPath: /etc/nginx/nginx.conf
+              subPath: nginx.conf
+            - name: nginx-logs
+              mountPath: /var/log/nginx
+          resources:
+            requests:
+              memory: "64Mi"
+              cpu: "50m"
+            limits:
+              memory: "256Mi"
+              cpu: "500m"
+      volumes:
+        - name: nginx-config
+          configMap:
+            name: nginx-config
+        - name: nginx-logs
+          persistentVolumeClaim:
+            claimName: nginx-logs-pvc
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: nginx
+  namespace: monitoring
+spec:
+  selector:
+    app: nginx
+  ports:
+    - name: http
+      port: 80
+      targetPort: 80
+  type: ClusterIP
