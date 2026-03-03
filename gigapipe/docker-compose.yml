@@ -1,0 +1,99 @@
+services:
+  clickhouse:
+    image: clickhouse/clickhouse-server:24.1
+    container_name: clickhouse
+    environment:
+      - CLICKHOUSE_USER=gigapipe
+      - CLICKHOUSE_PASSWORD=gigapipe123
+      - CLICKHOUSE_DB=gigapipe
+      - CLICKHOUSE_DEFAULT_ACCESS_MANAGEMENT=1
+    ports:
+      - "8123:8123"
+      - "9000:9000"
+    volumes:
+      - clickhouse-data:/var/lib/clickhouse
+    ulimits:
+      nofile:
+        soft: 262144
+        hard: 262144
+    healthcheck:
+      test: ['CMD', 'wget', '--spider', '-q', '127.0.0.1:8123/ping']
+      interval: 1s
+      timeout: 1s
+      retries: 30
+    networks:
+      - stack
+    restart: unless-stopped
+
+  gigapipe:
+    image: ghcr.io/metrico/gigapipe:latest
+    container_name: gigapipe
+    depends_on:
+      clickhouse:
+        condition: service_healthy
+    ports:
+      - "3100:3100"
+    environment:
+      - CLICKHOUSE_SERVER=clickhouse
+      - CLICKHOUSE_PORT=9000
+      - CLICKHOUSE_AUTH=gigapipe:gigapipe123
+      - CLICKHOUSE_DB=gigapipe
+      - CLICKHOUSE_PROTO=http
+      - HOST=0.0.0.0
+      - PORT=3100
+      - DEBUG=true
+    networks:
+      - stack
+    restart: always
+
+  nginx:
+    build: ./nginx
+    container_name: nginx
+    ports:
+      - "8080:80"
+    volumes:
+      - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./nginx/geoip:/etc/nginx/geoip:ro
+      - ./nginx-logs:/var/log/nginx
+    networks:
+      - stack
+    restart: unless-stopped
+
+  promtail:
+    image: grafana/promtail:2.9.4
+    container_name: promtail
+    depends_on:
+      - gigapipe
+      - nginx
+    volumes:
+      - ./promtail/promtail-config.yml:/etc/promtail/config.yml:ro
+      - ./nginx-logs:/var/log/nginx:ro
+    command: -config.file=/etc/promtail/config.yml
+    networks:
+      - stack
+    restart: unless-stopped
+
+  grafana:
+    image: grafana/grafana:10.3.1
+    container_name: grafana
+    ports:
+      - "3000:3000"
+    depends_on:
+      - gigapipe
+    volumes:
+      - grafana-data:/var/lib/grafana
+      - ./grafana/provisioning:/etc/grafana/provisioning:ro
+    environment:
+      - GF_SECURITY_ADMIN_USER=kuceng
+      - GF_SECURITY_ADMIN_PASSWORD=belagak
+    networks:
+      - stack
+    restart: unless-stopped
+
+volumes:
+  clickhouse-data:
+  grafana-data:
+
+networks:
+  stack:
+    driver: bridge
